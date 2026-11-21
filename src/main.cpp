@@ -104,9 +104,9 @@ class $modify(ZaidRootPlayLayer, PlayLayer) {
 
 $on_mod(Loaded) {
     zaid::RootInputReader::instance().start();
-    listenForSettingChanges("enable-root-mapper", [](bool) { zaid::reloadConfig(); });
-    listenForSettingChanges("event-device", [](int64_t) { zaid::reloadConfig(); });
-    listenForSettingChanges("player-1-key", [](std::string) { zaid::reloadConfig(); });
-    listenForSettingChanges("player-2-key", [](std::string) { zaid::reloadConfig(); });
+    listenForSettingChanges<bool>("enable-root-mapper", [](bool) { zaid::reloadConfig(); });
+    listenForSettingChanges<int64_t>("event-device", [](int64_t) { zaid::reloadConfig(); });
+    listenForSettingChanges<std::string>("player-1-key", [](std::string) { zaid::reloadConfig(); });
+    listenForSettingChanges<std::string>("player-2-key", [](std::string) { zaid::reloadConfig(); });
     zaid::reloadConfig();
 }

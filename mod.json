@@ -1,36 +1,374 @@
 {
   "geode": "5.11.2",
-  "gd": { "android": "2.2081" },
+  "gd": {
+    "android": "2.2081"
+  },
   "id": "zaid.root-input-mapper",
-  "name": "Zaid Root Tools - Input Mapper",
-  "version": "v0.1.0",
+  "name": "Zaid Root Tools",
+  "version": "v0.2.0",
   "developer": "Zaid",
-  "description": "Map Linux evdev buttons to Geometry Dash player jump via an explicit and restricted su/native evdev session.",
+  "description": "Root-powered evdev mapper for Geometry Dash on Android ARM64. Supports jump, pause, restart, practice and checkpoint actions through a restricted su session.",
   "settings": {
     "mapper-section": {
-      "type": "title", "name": "Root Input Mapper"
+      "type": "title",
+      "name": "Root Input Mapper"
     },
     "enable-root-mapper": {
-      "type": "bool", "name": "Activar mapper con root", "default": false,
+      "type": "bool",
+      "name": "Activar mapper con root",
+      "default": false,
       "description": "Solicita su y escucha solo el dispositivo seleccionado. Desactivalo antes de cambiar de dispositivo."
     },
     "event-device": {
-      "type": "int", "name": "Numero de /dev/input/eventN", "default": -1,
-      "min": -1, "max": 63,
+      "type": "int",
+      "name": "Numero de /dev/input/eventN",
+      "default": -1,
+      "min": -1,
+      "max": 63,
       "description": "Ejemplo: 4 para /dev/input/event4. El valor -1 deshabilita el acceso al dispositivo.",
-      "control": { "slider": false, "arrows": true, "input": true }
-    },
-    "player-1-key": {
-      "type": "string", "name": "Salto jugador 1", "default": "VOL_UP",
-      "one-of": ["VOL_UP", "VOL_DOWN", "BTN_SOUTH", "BTN_EAST", "BTN_NORTH", "BTN_WEST", "BTN_TL", "BTN_TR", "BTN_SELECT", "BTN_START"]
-    },
-    "player-2-key": {
-      "type": "string", "name": "Salto jugador 2", "default": "VOL_DOWN",
-      "one-of": ["VOL_UP", "VOL_DOWN", "BTN_SOUTH", "BTN_EAST", "BTN_NORTH", "BTN_WEST", "BTN_TL", "BTN_TR", "BTN_SELECT", "BTN_START"]
+      "control": {
+        "slider": false,
+        "arrows": true,
+        "input": true
+      }
     },
     "show-status": {
-      "type": "bool", "name": "Mostrar estado dentro del nivel", "default": true,
+      "type": "bool",
+      "name": "Mostrar estado dentro del nivel",
+      "default": true,
       "description": "Muestra OFF, SU, ON o ERROR. Se aplica al entrar a un nuevo nivel."
+    },
+    "bindings-title": {
+      "type": "title",
+      "name": "Bindings de acciones"
+    },
+    "binding-1-key": {
+      "type": "string",
+      "name": "Entrada 1",
+      "default": "VOL_UP",
+      "description": "Boton fisico Linux /dev/input que dispara la accion.",
+      "one-of": [
+        "NONE",
+        "VOL_UP",
+        "VOL_DOWN",
+        "BTN_SOUTH",
+        "BTN_EAST",
+        "BTN_NORTH",
+        "BTN_WEST",
+        "BTN_TL",
+        "BTN_TR",
+        "BTN_SELECT",
+        "BTN_START",
+        "BTN_MODE",
+        "BTN_THUMBL",
+        "BTN_THUMBR"
+      ]
+    },
+    "binding-1-action": {
+      "type": "string",
+      "name": "Accion 1",
+      "default": "JUMP_P1",
+      "description": "Accion que se ejecuta al presionar la entrada seleccionada.",
+      "one-of": [
+        "NONE",
+        "JUMP_P1",
+        "JUMP_P2",
+        "JUMP_BOTH",
+        "PAUSE",
+        "RESTART",
+        "FULL_RESTART",
+        "PRACTICE_TOGGLE",
+        "PLACE_CHECKPOINT",
+        "LOAD_LAST_CHECKPOINT",
+        "CLEAR_CHECKPOINTS"
+      ]
+    },
+    "binding-2-key": {
+      "type": "string",
+      "name": "Entrada 2",
+      "default": "VOL_DOWN",
+      "description": "Boton fisico Linux /dev/input que dispara la accion.",
+      "one-of": [
+        "NONE",
+        "VOL_UP",
+        "VOL_DOWN",
+        "BTN_SOUTH",
+        "BTN_EAST",
+        "BTN_NORTH",
+        "BTN_WEST",
+        "BTN_TL",
+        "BTN_TR",
+        "BTN_SELECT",
+        "BTN_START",
+        "BTN_MODE",
+        "BTN_THUMBL",
+        "BTN_THUMBR"
+      ]
+    },
+    "binding-2-action": {
+      "type": "string",
+      "name": "Accion 2",
+      "default": "JUMP_P2",
+      "description": "Accion que se ejecuta al presionar la entrada seleccionada.",
+      "one-of": [
+        "NONE",
+        "JUMP_P1",
+        "JUMP_P2",
+        "JUMP_BOTH",
+        "PAUSE",
+        "RESTART",
+        "FULL_RESTART",
+        "PRACTICE_TOGGLE",
+        "PLACE_CHECKPOINT",
+        "LOAD_LAST_CHECKPOINT",
+        "CLEAR_CHECKPOINTS"
+      ]
+    },
+    "binding-3-key": {
+      "type": "string",
+      "name": "Entrada 3",
+      "default": "NONE",
+      "description": "Boton fisico Linux /dev/input que dispara la accion.",
+      "one-of": [
+        "NONE",
+        "VOL_UP",
+        "VOL_DOWN",
+        "BTN_SOUTH",
+        "BTN_EAST",
+        "BTN_NORTH",
+        "BTN_WEST",
+        "BTN_TL",
+        "BTN_TR",
+        "BTN_SELECT",
+        "BTN_START",
+        "BTN_MODE",
+        "BTN_THUMBL",
+        "BTN_THUMBR"
+      ]
+    },
+    "binding-3-action": {
+      "type": "string",
+      "name": "Accion 3",
+      "default": "NONE",
+      "description": "Accion que se ejecuta al presionar la entrada seleccionada.",
+      "one-of": [
+        "NONE",
+        "JUMP_P1",
+        "JUMP_P2",
+        "JUMP_BOTH",
+        "PAUSE",
+        "RESTART",
+        "FULL_RESTART",
+        "PRACTICE_TOGGLE",
+        "PLACE_CHECKPOINT",
+        "LOAD_LAST_CHECKPOINT",
+        "CLEAR_CHECKPOINTS"
+      ]
+    },
+    "binding-4-key": {
+      "type": "string",
+      "name": "Entrada 4",
+      "default": "NONE",
+      "description": "Boton fisico Linux /dev/input que dispara la accion.",
+      "one-of": [
+        "NONE",
+        "VOL_UP",
+        "VOL_DOWN",
+        "BTN_SOUTH",
+        "BTN_EAST",
+        "BTN_NORTH",
+        "BTN_WEST",
+        "BTN_TL",
+        "BTN_TR",
+        "BTN_SELECT",
+        "BTN_START",
+        "BTN_MODE",
+        "BTN_THUMBL",
+        "BTN_THUMBR"
+      ]
+    },
+    "binding-4-action": {
+      "type": "string",
+      "name": "Accion 4",
+      "default": "NONE",
+      "description": "Accion que se ejecuta al presionar la entrada seleccionada.",
+      "one-of": [
+        "NONE",
+        "JUMP_P1",
+        "JUMP_P2",
+        "JUMP_BOTH",
+        "PAUSE",
+        "RESTART",
+        "FULL_RESTART",
+        "PRACTICE_TOGGLE",
+        "PLACE_CHECKPOINT",
+        "LOAD_LAST_CHECKPOINT",
+        "CLEAR_CHECKPOINTS"
+      ]
+    },
+    "binding-5-key": {
+      "type": "string",
+      "name": "Entrada 5",
+      "default": "NONE",
+      "description": "Boton fisico Linux /dev/input que dispara la accion.",
+      "one-of": [
+        "NONE",
+        "VOL_UP",
+        "VOL_DOWN",
+        "BTN_SOUTH",
+        "BTN_EAST",
+        "BTN_NORTH",
+        "BTN_WEST",
+        "BTN_TL",
+        "BTN_TR",
+        "BTN_SELECT",
+        "BTN_START",
+        "BTN_MODE",
+        "BTN_THUMBL",
+        "BTN_THUMBR"
+      ]
+    },
+    "binding-5-action": {
+      "type": "string",
+      "name": "Accion 5",
+      "default": "NONE",
+      "description": "Accion que se ejecuta al presionar la entrada seleccionada.",
+      "one-of": [
+        "NONE",
+        "JUMP_P1",
+        "JUMP_P2",
+        "JUMP_BOTH",
+        "PAUSE",
+        "RESTART",
+        "FULL_RESTART",
+        "PRACTICE_TOGGLE",
+        "PLACE_CHECKPOINT",
+        "LOAD_LAST_CHECKPOINT",
+        "CLEAR_CHECKPOINTS"
+      ]
+    },
+    "binding-6-key": {
+      "type": "string",
+      "name": "Entrada 6",
+      "default": "NONE",
+      "description": "Boton fisico Linux /dev/input que dispara la accion.",
+      "one-of": [
+        "NONE",
+        "VOL_UP",
+        "VOL_DOWN",
+        "BTN_SOUTH",
+        "BTN_EAST",
+        "BTN_NORTH",
+        "BTN_WEST",
+        "BTN_TL",
+        "BTN_TR",
+        "BTN_SELECT",
+        "BTN_START",
+        "BTN_MODE",
+        "BTN_THUMBL",
+        "BTN_THUMBR"
+      ]
+    },
+    "binding-6-action": {
+      "type": "string",
+      "name": "Accion 6",
+      "default": "NONE",
+      "description": "Accion que se ejecuta al presionar la entrada seleccionada.",
+      "one-of": [
+        "NONE",
+        "JUMP_P1",
+        "JUMP_P2",
+        "JUMP_BOTH",
+        "PAUSE",
+        "RESTART",
+        "FULL_RESTART",
+        "PRACTICE_TOGGLE",
+        "PLACE_CHECKPOINT",
+        "LOAD_LAST_CHECKPOINT",
+        "CLEAR_CHECKPOINTS"
+      ]
+    },
+    "binding-7-key": {
+      "type": "string",
+      "name": "Entrada 7",
+      "default": "NONE",
+      "description": "Boton fisico Linux /dev/input que dispara la accion.",
+      "one-of": [
+        "NONE",
+        "VOL_UP",
+        "VOL_DOWN",
+        "BTN_SOUTH",
+        "BTN_EAST",
+        "BTN_NORTH",
+        "BTN_WEST",
+        "BTN_TL",
+        "BTN_TR",
+        "BTN_SELECT",
+        "BTN_START",
+        "BTN_MODE",
+        "BTN_THUMBL",
+        "BTN_THUMBR"
+      ]
+    },
+    "binding-7-action": {
+      "type": "string",
+      "name": "Accion 7",
+      "default": "NONE",
+      "description": "Accion que se ejecuta al presionar la entrada seleccionada.",
+      "one-of": [
+        "NONE",
+        "JUMP_P1",
+        "JUMP_P2",
+        "JUMP_BOTH",
+        "PAUSE",
+        "RESTART",
+        "FULL_RESTART",
+        "PRACTICE_TOGGLE",
+        "PLACE_CHECKPOINT",
+        "LOAD_LAST_CHECKPOINT",
+        "CLEAR_CHECKPOINTS"
+      ]
+    },
+    "binding-8-key": {
+      "type": "string",
+      "name": "Entrada 8",
+      "default": "NONE",
+      "description": "Boton fisico Linux /dev/input que dispara la accion.",
+      "one-of": [
+        "NONE",
+        "VOL_UP",
+        "VOL_DOWN",
+        "BTN_SOUTH",
+        "BTN_EAST",
+        "BTN_NORTH",
+        "BTN_WEST",
+        "BTN_TL",
+        "BTN_TR",
+        "BTN_SELECT",
+        "BTN_START",
+        "BTN_MODE",
+        "BTN_THUMBL",
+        "BTN_THUMBR"
+      ]
+    },
+    "binding-8-action": {
+      "type": "string",
+      "name": "Accion 8",
+      "default": "NONE",
+      "description": "Accion que se ejecuta al presionar la entrada seleccionada.",
+      "one-of": [
+        "NONE",
+        "JUMP_P1",
+        "JUMP_P2",
+        "JUMP_BOTH",
+        "PAUSE",
+        "RESTART",
+        "FULL_RESTART",
+        "PRACTICE_TOGGLE",
+        "PLACE_CHECKPOINT",
+        "LOAD_LAST_CHECKPOINT",
+        "CLEAR_CHECKPOINTS"
+      ]
     }
   }
 }

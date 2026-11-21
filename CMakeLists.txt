@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(ZaidRootTools VERSION 0.1.0 LANGUAGES C CXX)
+project(ZaidRootTools VERSION 0.2.0 LANGUAGES C CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -8,7 +8,7 @@ if(NOT ANDROID)
     message(FATAL_ERROR "This Geode mod is Android-only. Use geode build -p android64")
 endif()
 if(DEFINED ANDROID_ABI AND NOT ANDROID_ABI STREQUAL "arm64-v8a")
-    message(FATAL_ERROR "Zaid Root Tools v0.1 only supports arm64-v8a")
+    message(FATAL_ERROR "Zaid Root Tools v0.2 only supports arm64-v8a")
 endif()
 
 add_library(${PROJECT_NAME} SHARED

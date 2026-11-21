@@ -4,25 +4,98 @@
 #include "RawEvdev.hpp"
 #include "RootInputReader.hpp"
 #include <string>
+#include <string_view>
 
 using namespace geode::prelude;
 
 namespace zaid {
-namespace {
-// These two flags are accessed ONLY from the game/main thread.
+// These flags are accessed ONLY from the game/main thread.
 bool s_held[2] = {false, false};
+
+constexpr int kBindingCount = 8;
+
+std::string keySettingName(int index) {
+    return "binding-" + std::to_string(index) + "-key";
+}
+
+std::string actionSettingName(int index) {
+    return "binding-" + std::to_string(index) + "-action";
+}
+
+void setJumpHeld(PlayLayer* pl, int player, bool down) {
+    if (player < 0 || player > 1) return;
+    if (s_held[player] == down) return;
+    s_held[player] = down;
+    if (pl) pl->handleButton(down, 1, player == 0);
+}
 
 InputConfig loadConfig() {
     auto mod = Mod::get();
     InputConfig config;
     config.enabled = mod->getSettingValue<bool>("enable-root-mapper");
     config.device = static_cast<int>(mod->getSettingValue<int64_t>("event-device"));
-    config.player1 = mapButtonName(mod->getSettingValue<std::string>("player-1-key"));
-    config.player2 = mapButtonName(mod->getSettingValue<std::string>("player-2-key"));
+    for (int i = 0; i < kBindingCount; ++i) {
+        auto slot = i + 1;
+        config.bindings[i].key = mapButtonName(mod->getSettingValue<std::string>(keySettingName(slot)));
+        config.bindings[i].action = mapActionName(mod->getSettingValue<std::string>(actionSettingName(slot)));
+    }
     return config;
 }
 
 void reloadConfig() { RootInputReader::instance().configure(loadConfig()); }
+
+void runAction(PlayLayer* pl, ActionType action, bool down) {
+    if (!pl) return;
+    switch (action) {
+        case ActionType::None:
+            return;
+        case ActionType::JumpP1:
+            setJumpHeld(pl, 0, down);
+            return;
+        case ActionType::JumpP2:
+            setJumpHeld(pl, 1, down);
+            return;
+        case ActionType::JumpBoth:
+            setJumpHeld(pl, 0, down);
+            setJumpHeld(pl, 1, down);
+            return;
+        case ActionType::Pause:
+            if (down && pl->canPauseGame() && !pl->m_isPaused) pl->pauseGame(true);
+            return;
+        case ActionType::Restart:
+            if (down) pl->resetLevel();
+            return;
+        case ActionType::FullRestart:
+            if (down) pl->resetLevelFromStart();
+            return;
+        case ActionType::PracticeToggle:
+            if (down) pl->togglePracticeMode(!pl->m_isPracticeMode);
+            return;
+        case ActionType::PlaceCheckpoint:
+            if (down && pl->m_isPracticeMode) pl->createCheckpoint();
+            return;
+        case ActionType::LoadLastCheckpoint:
+            if (down && pl->m_isPracticeMode) pl->loadLastCheckpoint();
+            return;
+        case ActionType::ClearCheckpoints:
+            if (down && pl->m_isPracticeMode) pl->removeAllCheckpoints();
+            return;
+    }
+}
+
+ActionType mapActionName(std::string_view name) {
+    if (name == "NONE") return ActionType::None;
+    if (name == "JUMP_P1") return ActionType::JumpP1;
+    if (name == "JUMP_P2") return ActionType::JumpP2;
+    if (name == "JUMP_BOTH") return ActionType::JumpBoth;
+    if (name == "PAUSE") return ActionType::Pause;
+    if (name == "RESTART") return ActionType::Restart;
+    if (name == "FULL_RESTART") return ActionType::FullRestart;
+    if (name == "PRACTICE_TOGGLE") return ActionType::PracticeToggle;
+    if (name == "PLACE_CHECKPOINT") return ActionType::PlaceCheckpoint;
+    if (name == "LOAD_LAST_CHECKPOINT") return ActionType::LoadLastCheckpoint;
+    if (name == "CLEAR_CHECKPOINTS") return ActionType::ClearCheckpoints;
+    return ActionType::None;
 }
 
 void releaseMappedInputs() {
@@ -34,21 +107,19 @@ void releaseMappedInputs() {
     }
 }
 
-void handleMappedInput(int code, bool down, int p1, int p2) {
+void handleMappedInput(int code, bool down, InputConfig const& config) {
     auto pl = PlayLayer::get();
-    if (!pl || pl->m_isPaused || !pl->m_player1) {
-        // A physical release can arrive after the player leaves the level.
+    if (!pl || !pl->m_player1) {
         if (!down) releaseMappedInputs();
         return;
     }
-    for (int i = 0; i < 2; ++i) {
-        if (code != (i == 0 ? p1 : p2)) continue;
-        if (s_held[i] == down) continue; // debounces repeated key events
-        s_held[i] = down;
-        pl->handleButton(down, 1, i == 0);
+    for (auto const& binding : config.bindings) {
+        if (binding.key != code || binding.action == ActionType::None) continue;
+        runAction(pl, binding.action, down);
     }
 }
-}
+
+} // namespace zaid
 
 class $modify(ZaidRootPlayLayer, PlayLayer) {
     struct Fields {
@@ -106,7 +177,9 @@ $on_mod(Loaded) {
     zaid::RootInputReader::instance().start();
     listenForSettingChanges<bool>("enable-root-mapper", [](bool) { zaid::reloadConfig(); });
     listenForSettingChanges<int64_t>("event-device", [](int64_t) { zaid::reloadConfig(); });
-    listenForSettingChanges<std::string>("player-1-key", [](std::string) { zaid::reloadConfig(); });
-    listenForSettingChanges<std::string>("player-2-key", [](std::string) { zaid::reloadConfig(); });
+    for (int i = 1; i <= zaid::kBindingCount; ++i) {
+        listenForSettingChanges<std::string>(zaid::keySettingName(i), [](std::string) { zaid::reloadConfig(); });
+        listenForSettingChanges<std::string>(zaid::actionSettingName(i), [](std::string) { zaid::reloadConfig(); });
+    }
     zaid::reloadConfig();
 }

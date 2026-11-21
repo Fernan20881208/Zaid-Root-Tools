@@ -1,16 +1,37 @@
 #pragma once
+#include <array>
 #include <atomic>
 #include <condition_variable>
 #include <cstdint>
 #include <mutex>
 #include <thread>
+#include <string_view>
 
 namespace zaid {
+enum class ActionType : uint8_t {
+    None,
+    JumpP1,
+    JumpP2,
+    JumpBoth,
+    Pause,
+    Restart,
+    FullRestart,
+    PracticeToggle,
+    PlaceCheckpoint,
+    LoadLastCheckpoint,
+    ClearCheckpoints,
+};
+
+struct InputBinding {
+    int key = -1;
+    ActionType action = ActionType::None;
+    bool operator==(InputBinding const&) const = default;
+};
+
 struct InputConfig {
     bool enabled = false;
     int device = -1;     // Event number only, never a user-supplied shell path
-    int player1 = 115;   // Linux KEY_VOLUMEUP
-    int player2 = 114;   // Linux KEY_VOLUMEDOWN
+    std::array<InputBinding, 8> bindings{};
     bool operator==(InputConfig const&) const = default;
 };
 
@@ -49,6 +70,7 @@ private:
 };
 
 // Implemented by the Geode integration and always called on its main thread.
-void handleMappedInput(int code, bool down, int p1, int p2);
+void handleMappedInput(int code, bool down, InputConfig const& config);
 void releaseMappedInputs();
+ActionType mapActionName(std::string_view name);
 }

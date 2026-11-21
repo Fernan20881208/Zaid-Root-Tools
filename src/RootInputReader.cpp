@@ -89,6 +89,13 @@ void reapChild(pid_t pid) {
     ::kill(pid, SIGTERM);
     ::waitpid(pid, &code, WNOHANG);
 }
+
+bool configHasValidBinding(InputConfig const& config) {
+    for (auto const& binding : config.bindings) {
+        if (binding.key >= 0 && binding.action != ActionType::None) return true;
+    }
+    return false;
+}
 }
 
 RootInputReader& RootInputReader::instance() {
@@ -110,7 +117,7 @@ void RootInputReader::start() {
 bool RootInputReader::applyEffectiveConfigLocked() {
     auto effective = m_preference;
     // The Linux input stream must never run outside an actual game level.
-    effective.enabled = effective.enabled && m_gameplayActive;
+    effective.enabled = effective.enabled && m_gameplayActive && configHasValidBinding(effective);
     if (effective == m_requested && m_requestedGeneration != 0) return false;
     m_requested = effective;
     ++m_requestedGeneration;
@@ -148,10 +155,17 @@ bool RootInputReader::shouldEnd(uint64_t session) {
 }
 
 void RootInputReader::postKey(uint64_t session, InputConfig const& config, int code, bool down) {
-    if (code != config.player1 && code != config.player2) return;
+    bool mapped = false;
+    for (auto const& binding : config.bindings) {
+        if (binding.key == code && binding.action != ActionType::None) {
+            mapped = true;
+            break;
+        }
+    }
+    if (!mapped) return;
     Loader::get()->queueInMainThread([session, config, code, down] {
         if (RootInputReader::instance().generation() != session) return;
-        handleMappedInput(code, down, config.player1, config.player2);
+        handleMappedInput(code, down, config);
     });
 }
 
@@ -168,8 +182,7 @@ void RootInputReader::workerLoop() {
             config = m_requested;
         }
         if (!config.enabled) { m_status.store(ReaderStatus::Off); continue; }
-        if (config.device < 0 || config.device > 63 ||
-            config.player1 < 0 || config.player2 < 0) {
+        if (config.device < 0 || config.device > 63) {
             m_status.store(ReaderStatus::Error);
             log::warn("Root Input Mapper: seleccion o configuracion invalida");
             continue;

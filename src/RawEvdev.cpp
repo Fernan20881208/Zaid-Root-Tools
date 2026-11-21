@@ -1,6 +1,7 @@
 #include "RawEvdev.hpp"
 namespace zaid {
 int mapButtonName(std::string_view name) {
+    if (name == "NONE") return -1;
     if (name == "VOL_UP") return KEY_VOLUMEUP;
     if (name == "VOL_DOWN") return KEY_VOLUMEDOWN;
     if (name == "BTN_SOUTH") return BTN_SOUTH;
@@ -11,6 +12,9 @@ int mapButtonName(std::string_view name) {
     if (name == "BTN_TR") return BTN_TR;
     if (name == "BTN_SELECT") return BTN_SELECT;
     if (name == "BTN_START") return BTN_START;
+    if (name == "BTN_MODE") return BTN_MODE;
+    if (name == "BTN_THUMBL") return BTN_THUMBL;
+    if (name == "BTN_THUMBR") return BTN_THUMBR;
     return -1;
 }
 }

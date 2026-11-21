@@ -2,7 +2,7 @@
 #include <Geode/Geode.hpp>
 #include <algorithm>
 #include <jni.h>
-#include "platform/android/jni/JniHelper.h"
+#include <Geode/cocos/platform/android/jni/JniHelper.h>
 
 using namespace geode::prelude;
 
@@ -88,21 +88,47 @@ void HapticEngine::trigger(HapticEvent event) {
 }
 
 bool HapticEngine::vibrateAndroid(int durationMs, int amplitude) {
-    JNIEnv* env = cocos2d::JniHelper::getEnv();
-    jobject activity = cocos2d::JniHelper::getActivity();
-    if (!env || !activity) return false;
+    JavaVM* vm = cocos2d::JniHelper::getJavaVM();
+    if (!vm) return false;
+    JNIEnv* env = nullptr;
+    bool attached = false;
+    auto status = vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6);
+    if (status == JNI_EDETACHED) {
+        if (vm->AttachCurrentThread(&env, nullptr) != JNI_OK) return false;
+        attached = true;
+    } else if (status != JNI_OK) return false;
+    struct DetachGuard {
+        JavaVM* vm;
+        bool attached;
+        ~DetachGuard() { if (attached) vm->DetachCurrentThread(); }
+    } detach{vm, attached};
+
+    // This is the cocos2d-x helper used by Geometry Dash. Its sContext is
+    // populated at activity initialization and retained for the process.
+    jclass helper = env->FindClass("org/cocos2dx/lib/Cocos2dxHelper");
+    if (!helper || !noException(env)) return false;
+    jfieldID contextField = env->GetStaticFieldID(helper, "sContext", "Landroid/content/Context;");
+    if (!contextField || !noException(env)) {
+        env->DeleteLocalRef(helper);
+        return false;
+    }
+    jobject activity = env->GetStaticObjectField(helper, contextField);
+    env->DeleteLocalRef(helper);
+    if (!activity || !noException(env)) return false;
 
     bool ok = false;
     jclass contextCls = env->GetObjectClass(activity);
-    if (!contextCls || !noException(env)) return false;
+    if (!contextCls || !noException(env)) { if (contextCls) env->DeleteLocalRef(contextCls); env->DeleteLocalRef(activity); return false; }
     jmethodID getService = env->GetMethodID(contextCls, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
-    if (!getService || !noException(env)) { env->DeleteLocalRef(contextCls); return false; }
+    if (!getService || !noException(env)) { env->DeleteLocalRef(contextCls); env->DeleteLocalRef(activity); return false; }
     jstring serviceName = env->NewStringUTF("vibrator");
     jobject vibrator = serviceName ? env->CallObjectMethod(activity, getService, serviceName) : nullptr;
     if (!noException(env) || !vibrator) {
         if (serviceName) env->DeleteLocalRef(serviceName);
         env->DeleteLocalRef(contextCls);
-        return viewFeedback(env, activity);
+        bool feedback = viewFeedback(env, activity);
+        env->DeleteLocalRef(activity);
+        return feedback;
     }
     jclass vibratorCls = env->GetObjectClass(vibrator);
     if (vibratorCls && noException(env)) {
@@ -130,6 +156,8 @@ bool HapticEngine::vibrateAndroid(int durationMs, int amplitude) {
     env->DeleteLocalRef(contextCls);
     // If the host APK lacks VIBRATE permission, request a standard UI haptic.
     // The OS may suppress it if system-wide haptics are disabled.
-    return ok || viewFeedback(env, activity);
+    if (!ok) ok = viewFeedback(env, activity);
+    env->DeleteLocalRef(activity);
+    return ok;
 }
 }

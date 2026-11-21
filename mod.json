@@ -5,9 +5,9 @@
   },
   "id": "zaid.root-input-mapper",
   "name": "Zaid Root Tools",
-  "version": "v0.2.0",
+  "version": "v0.3.0",
   "developer": "Zaid",
-  "description": "Root-powered evdev mapper for Geometry Dash on Android ARM64. Supports jump, pause, restart, practice and checkpoint actions through a restricted su session.",
+  "description": "Input Mapper con root y Haptic Engine con vibracion por saltos, muertes, checkpoints y mas para Android ARM64.",
   "settings": {
     "mapper-section": {
       "type": "title",
@@ -369,6 +369,124 @@
         "LOAD_LAST_CHECKPOINT",
         "CLEAR_CHECKPOINTS"
       ]
+    },
+    "haptic-title": {
+      "type": "title",
+      "name": "Haptic Engine (Android)"
+    },
+    "haptic-enable": {
+      "type": "bool",
+      "name": "Activar Haptic Engine",
+      "default": false,
+      "description": "Usa las APIs de vibracion Android. No requiere root; Input Mapper conserva su soporte su."
+    },
+    "haptic-intensity": {
+      "type": "int",
+      "name": "Intensidad (%)",
+      "default": 45,
+      "min": 1,
+      "max": 100,
+      "description": "Intensidad solicitada a Android. Algunos motores solo admiten intensidad fija.",
+      "control": {
+        "slider": true
+      }
+    },
+    "haptic-jump-cooldown": {
+      "type": "int",
+      "name": "Intervalo minimo salto (ms)",
+      "default": 90,
+      "min": 60,
+      "max": 500,
+      "control": {
+        "slider": false,
+        "arrows": true,
+        "input": true
+      }
+    },
+    "haptic-jump": {
+      "type": "bool",
+      "name": "Vibrar al salto",
+      "default": true
+    },
+    "haptic-jump-ms": {
+      "type": "int",
+      "name": "Duracion Salto (ms)",
+      "default": 12,
+      "min": 1,
+      "max": 250,
+      "control": {
+        "slider": false,
+        "arrows": true,
+        "input": true
+      }
+    },
+    "haptic-death": {
+      "type": "bool",
+      "name": "Vibrar al muerte",
+      "default": true
+    },
+    "haptic-death-ms": {
+      "type": "int",
+      "name": "Duracion Muerte (ms)",
+      "default": 75,
+      "min": 1,
+      "max": 250,
+      "control": {
+        "slider": false,
+        "arrows": true,
+        "input": true
+      }
+    },
+    "haptic-checkpoint": {
+      "type": "bool",
+      "name": "Vibrar al checkpoint",
+      "default": true
+    },
+    "haptic-checkpoint-ms": {
+      "type": "int",
+      "name": "Duracion Checkpoint (ms)",
+      "default": 35,
+      "min": 1,
+      "max": 250,
+      "control": {
+        "slider": false,
+        "arrows": true,
+        "input": true
+      }
+    },
+    "haptic-complete": {
+      "type": "bool",
+      "name": "Vibrar al nivel completado",
+      "default": true
+    },
+    "haptic-complete-ms": {
+      "type": "int",
+      "name": "Duracion Nivel completado (ms)",
+      "default": 135,
+      "min": 1,
+      "max": 250,
+      "control": {
+        "slider": false,
+        "arrows": true,
+        "input": true
+      }
+    },
+    "haptic-pause": {
+      "type": "bool",
+      "name": "Vibrar al pausa",
+      "default": false
+    },
+    "haptic-pause-ms": {
+      "type": "int",
+      "name": "Duracion Pausa (ms)",
+      "default": 20,
+      "min": 1,
+      "max": 250,
+      "control": {
+        "slider": false,
+        "arrows": true,
+        "input": true
+      }
     }
   }
 }

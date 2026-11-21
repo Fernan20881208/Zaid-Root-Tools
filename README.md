@@ -1,8 +1,17 @@
-# Zaid Root Tools
+# Zaid Root Tools v0.3.0
 
 ![Zaid Root Tools logo](assets/logo.svg)
 
 Geode mod para **Geometry Dash 2.208 / 2.2081 Android ARM64** con soporte de **root (`su`)** para leer `/dev/input/eventN` y traducir eventos Linux `EV_KEY` a acciones del juego.
+
+## Haptic Engine v0.3.0
+
+- Vibración configurable para: **saltos**, **muerte**, **checkpoint**, **nivel completado** y **pausa**.
+- Intensidad ajustable (1-100%) y duración individual por evento (1-250 ms).
+- Enfriamiento de saltos (mínimo 60 ms) y control de eventos duplicados.
+- Usa la API `android.os.VibrationEffect` desde JNI cuando la app tiene permiso de vibración. Si no lo tiene, intenta `View.performHapticFeedback`: este modo depende de los ajustes táctiles del sistema y no puede respetar duración/intensidad.
+- **No necesita root** para vibrar. El acceso root sigue reservado al Input Mapper.
+- Desactivado de fábrica; actívalo desde ajustes de Geode dentro del mod.
 
 ## Características actuales
 

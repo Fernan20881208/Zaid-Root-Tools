@@ -1,6 +1,8 @@
 #include <Geode/Geode.hpp>
 #include <Geode/loader/SettingV3.hpp>
 #include <Geode/modify/PlayLayer.hpp>
+#include <Geode/modify/GJBaseGameLayer.hpp>
+#include "HapticEngine.hpp"
 #include "RawEvdev.hpp"
 #include "RootInputReader.hpp"
 #include <string>
@@ -121,6 +123,15 @@ void handleMappedInput(int code, bool down, InputConfig const& config) {
 
 } // namespace zaid
 
+class $modify(ZaidHapticButtons, GJBaseGameLayer) {
+    void handleButton(bool down, int button, bool isPlayer1) {
+        GJBaseGameLayer::handleButton(down, button, isPlayer1);
+        auto* pl = PlayLayer::get();
+        if (down && button == 1 && pl && this == static_cast<GJBaseGameLayer*>(pl) && !pl->m_isPaused)
+            zaid::HapticEngine::instance().trigger(zaid::HapticEvent::Jump);
+    }
+};
+
 class $modify(ZaidRootPlayLayer, PlayLayer) {
     struct Fields {
         cocos2d::CCLabelBMFont* statusLabel = nullptr;
@@ -161,9 +172,28 @@ class $modify(ZaidRootPlayLayer, PlayLayer) {
         m_fields->statusLabel->setString(message);
     }
 
+    void destroyPlayer(PlayerObject* player, GameObject* object) {
+        bool alive = player && !player->m_isDead;
+        PlayLayer::destroyPlayer(player, object);
+        if (alive) zaid::HapticEngine::instance().trigger(zaid::HapticEvent::Death);
+    }
+
+    CheckpointObject* createCheckpoint() {
+        auto* checkpoint = PlayLayer::createCheckpoint();
+        if (checkpoint && m_isPracticeMode)
+            zaid::HapticEngine::instance().trigger(zaid::HapticEvent::Checkpoint);
+        return checkpoint;
+    }
+
+    void levelComplete() {
+        zaid::HapticEngine::instance().trigger(zaid::HapticEvent::Complete);
+        PlayLayer::levelComplete();
+    }
+
     void pauseGame(bool paused) {
         if (paused) zaid::releaseMappedInputs();
         PlayLayer::pauseGame(paused);
+        if (paused) zaid::HapticEngine::instance().trigger(zaid::HapticEvent::Pause);
     }
 
     void onQuit() {
@@ -182,4 +212,12 @@ $on_mod(Loaded) {
         listenForSettingChanges<std::string>(zaid::actionSettingName(i), [](std::string) { zaid::reloadConfig(); });
     }
     zaid::reloadConfig();
+    zaid::HapticEngine::instance().updateSettings();
+    listenForSettingChanges<bool>("haptic-enable", [](bool) { zaid::HapticEngine::instance().updateSettings(); });
+    listenForSettingChanges<int64_t>("haptic-intensity", [](int64_t) { zaid::HapticEngine::instance().updateSettings(); });
+    listenForSettingChanges<int64_t>("haptic-jump-cooldown", [](int64_t) { zaid::HapticEngine::instance().updateSettings(); });
+    for (auto const* name : {"jump", "death", "checkpoint", "complete", "pause"}) {
+        listenForSettingChanges<bool>(fmt::format("haptic-{}", name), [](bool) { zaid::HapticEngine::instance().updateSettings(); });
+        listenForSettingChanges<int64_t>(fmt::format("haptic-{}-ms", name), [](int64_t) { zaid::HapticEngine::instance().updateSettings(); });
+    }
 }

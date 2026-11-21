@@ -194,3 +194,5 @@ bool HapticEngine::vibrateAndroid(int durationMs, int amplitude) {
     if (!ok) ok = viewFeedback(env, context.ref);
     return ok;
 }
+
+} // namespace zaid

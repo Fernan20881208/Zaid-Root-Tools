@@ -51,3 +51,7 @@ Geode mod para **Geometry Dash 2.208 / 2.2081 Android ARM64** con soporte de **r
 - `src/RootInputReader.*` — worker root, pipes y sesión `su`
 - `src/RawEvdev.*` — parser binario de `struct input_event`
 - `assets/logo.svg` / `assets/logo.png` — logo minimalista del proyecto
+
+## 0.3.1 — JNI crash fix
+
+Corrige `NoSuchFieldError: Cocos2dxHelper.sContext` en Android. Resuelve el contexto mediante métodos en lugar de un campo inexistente y limpia cualquier excepción JNI antes de regresar al renderizador. Si el sistema no ofrece un contexto compatible, la vibración se omite sin cerrar el juego.

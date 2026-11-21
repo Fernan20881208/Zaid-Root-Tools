@@ -11,49 +11,95 @@ namespace {
 constexpr unsigned ix(HapticEvent event) { return static_cast<unsigned>(event); }
 constexpr int clampMs(int ms) { return std::clamp(ms, 1, 250); }
 
-bool noException(JNIEnv* env) {
+// JNI exceptions must be cleared BEFORE returning to Android's GL renderer.
+// Do not use short-circuit expressions that can skip this call.
+bool jniOK(JNIEnv* env) {
     if (!env->ExceptionCheck()) return true;
-    // A missing VIBRATE manifest permission, unsupported vibration effect,
-    // or framework error must not crash Geometry Dash.
     env->ExceptionClear();
     return false;
 }
 
-// Fallback: Android's view-mediated feedback normally does not require the
-// host APK to declare VIBRATE. Android controls strength and duration here.
-bool viewFeedback(JNIEnv* env, jobject activity) {
-    jclass activityCls = env->GetObjectClass(activity);
-    if (!activityCls || !noException(env)) return false;
-    jmethodID getWindow = env->GetMethodID(activityCls, "getWindow", "()Landroid/view/Window;");
-    if (!getWindow || !noException(env)) { env->DeleteLocalRef(activityCls); return false; }
-    jobject window = env->CallObjectMethod(activity, getWindow);
-    if (!window || !noException(env)) { env->DeleteLocalRef(activityCls); return false; }
-    jclass windowCls = env->GetObjectClass(window);
-    jmethodID getDecorView = windowCls ? env->GetMethodID(windowCls, "getDecorView", "()Landroid/view/View;") : nullptr;
-    if (!noException(env) || !getDecorView) {
-        if (windowCls) env->DeleteLocalRef(windowCls);
-        env->DeleteLocalRef(window); env->DeleteLocalRef(activityCls); return false;
+struct LocalRef {
+    JNIEnv* env;
+    jobject ref;
+    ~LocalRef() { if (ref) env->DeleteLocalRef(ref); }
+    LocalRef(LocalRef const&) = delete;
+    LocalRef& operator=(LocalRef const&) = delete;
+    LocalRef(JNIEnv* e, jobject r) : env(e), ref(r) {}
+};
+
+// Cocos2dxHelper doesn't expose an sContext field on every Geometry Dash
+// Android version. Use public methods instead, and tolerate absent methods.
+jobject resolveContext(JNIEnv* env) {
+    {
+        LocalRef helper(env, env->FindClass("org/cocos2dx/lib/Cocos2dxHelper"));
+        if (jniOK(env) && helper.ref) {
+            jmethodID getter = env->GetStaticMethodID(
+                static_cast<jclass>(helper.ref), "getActivity", "()Landroid/app/Activity;");
+            if (jniOK(env) && getter) {
+                jobject activity = env->CallStaticObjectMethod(static_cast<jclass>(helper.ref), getter);
+                if (jniOK(env) && activity) return activity;
+                if (activity) env->DeleteLocalRef(activity);
+            }
+        }
     }
-    jobject view = env->CallObjectMethod(window, getDecorView);
-    if (!view || !noException(env)) {
-        if (view) env->DeleteLocalRef(view);
-        env->DeleteLocalRef(windowCls); env->DeleteLocalRef(window); env->DeleteLocalRef(activityCls);
-        return false;
+    {
+        LocalRef cls(env, env->FindClass("org/cocos2dx/lib/Cocos2dxActivity"));
+        if (jniOK(env) && cls.ref) {
+            jmethodID getter = env->GetStaticMethodID(
+                static_cast<jclass>(cls.ref), "getContext", "()Landroid/content/Context;");
+            if (jniOK(env) && getter) {
+                jobject context = env->CallStaticObjectMethod(static_cast<jclass>(cls.ref), getter);
+                if (jniOK(env) && context) return context;
+                if (context) env->DeleteLocalRef(context);
+            }
+        }
     }
-    jclass viewCls = env->GetObjectClass(view);
-    jmethodID feedback = viewCls ? env->GetMethodID(viewCls, "performHapticFeedback", "(I)Z") : nullptr;
-    bool ok = false;
-    if (noException(env) && feedback) {
-        // HapticFeedbackConstants.VIRTUAL_KEY = 1
-        ok = env->CallBooleanMethod(view, feedback, static_cast<jint>(1)) == JNI_TRUE;
-        ok = noException(env) && ok;
+    // Optional fallback: on some Cocos variants helper getActivity is absent,
+    // but the VM can give us the app context. This is a non-SDK Android method;
+    // if blocked, JNI errors are cleared and haptics are simply skipped.
+    {
+        LocalRef cls(env, env->FindClass("android/app/ActivityThread"));
+        if (jniOK(env) && cls.ref) {
+            jmethodID getter = env->GetStaticMethodID(
+                static_cast<jclass>(cls.ref), "currentApplication", "()Landroid/app/Application;");
+            if (jniOK(env) && getter) {
+                jobject app = env->CallStaticObjectMethod(static_cast<jclass>(cls.ref), getter);
+                if (jniOK(env) && app) return app;
+                if (app) env->DeleteLocalRef(app);
+            }
+        }
     }
-    if (viewCls) env->DeleteLocalRef(viewCls);
-    env->DeleteLocalRef(view);
-    env->DeleteLocalRef(windowCls);
-    env->DeleteLocalRef(window);
-    env->DeleteLocalRef(activityCls);
-    return ok;
+    jniOK(env);
+    return nullptr;
+}
+
+// View.performHapticFeedback is a safe, short fallback when the app doesn't
+// declare android.permission.VIBRATE. It only works with an Activity context.
+bool viewFeedback(JNIEnv* env, jobject context) {
+    LocalRef activityClass(env, env->FindClass("android/app/Activity"));
+    if (!jniOK(env) || !activityClass.ref) return false;
+    auto isActivity = env->IsInstanceOf(context, static_cast<jclass>(activityClass.ref));
+    if (!jniOK(env) || isActivity != JNI_TRUE) return false;
+
+    LocalRef contextClass(env, env->GetObjectClass(context));
+    if (!jniOK(env) || !contextClass.ref) return false;
+    auto getWindow = env->GetMethodID(static_cast<jclass>(contextClass.ref), "getWindow", "()Landroid/view/Window;");
+    if (!jniOK(env) || !getWindow) return false;
+    LocalRef window(env, env->CallObjectMethod(context, getWindow));
+    if (!jniOK(env) || !window.ref) return false;
+    LocalRef windowClass(env, env->GetObjectClass(window.ref));
+    if (!jniOK(env) || !windowClass.ref) return false;
+    auto getDecorView = env->GetMethodID(static_cast<jclass>(windowClass.ref), "getDecorView", "()Landroid/view/View;");
+    if (!jniOK(env) || !getDecorView) return false;
+    LocalRef view(env, env->CallObjectMethod(window.ref, getDecorView));
+    if (!jniOK(env) || !view.ref) return false;
+    LocalRef viewClass(env, env->GetObjectClass(view.ref));
+    if (!jniOK(env) || !viewClass.ref) return false;
+    auto perform = env->GetMethodID(static_cast<jclass>(viewClass.ref), "performHapticFeedback", "(I)Z");
+    if (!jniOK(env) || !perform) return false;
+    auto result = env->CallBooleanMethod(view.ref, perform, static_cast<jint>(1)); // VIRTUAL_KEY
+    return jniOK(env) && result == JNI_TRUE;
 }
 }
 
@@ -99,65 +145,52 @@ bool HapticEngine::vibrateAndroid(int durationMs, int amplitude) {
     } else if (status != JNI_OK) return false;
     struct DetachGuard {
         JavaVM* vm;
+        JNIEnv* env;
         bool attached;
-        ~DetachGuard() { if (attached) vm->DetachCurrentThread(); }
-    } detach{vm, attached};
+        ~DetachGuard() {
+            // The VM must NEVER see an unhandled Java exception from a mod.
+            if (env->ExceptionCheck()) env->ExceptionClear();
+            if (attached) vm->DetachCurrentThread();
+        }
+    } detach{vm, env, attached};
 
-    // This is the cocos2d-x helper used by Geometry Dash. Its sContext is
-    // populated at activity initialization and retained for the process.
-    jclass helper = env->FindClass("org/cocos2dx/lib/Cocos2dxHelper");
-    if (!helper || !noException(env)) return false;
-    jfieldID contextField = env->GetStaticFieldID(helper, "sContext", "Landroid/content/Context;");
-    if (!contextField || !noException(env)) {
-        env->DeleteLocalRef(helper);
-        return false;
-    }
-    jobject activity = env->GetStaticObjectField(helper, contextField);
-    env->DeleteLocalRef(helper);
-    if (!activity || !noException(env)) return false;
+    LocalRef context(env, resolveContext(env));
+    if (!context.ref) return false;
+    LocalRef contextClass(env, env->GetObjectClass(context.ref));
+    if (!jniOK(env) || !contextClass.ref) return false;
+    auto getService = env->GetMethodID(static_cast<jclass>(contextClass.ref),
+        "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
+    if (!jniOK(env) || !getService) return viewFeedback(env, context.ref);
+    LocalRef serviceName(env, env->NewStringUTF("vibrator"));
+    if (!jniOK(env) || !serviceName.ref) return viewFeedback(env, context.ref);
+    LocalRef vibrator(env, env->CallObjectMethod(context.ref, getService, serviceName.ref));
+    if (!jniOK(env) || !vibrator.ref) return viewFeedback(env, context.ref);
+    LocalRef vibratorClass(env, env->GetObjectClass(vibrator.ref));
+    if (!jniOK(env) || !vibratorClass.ref) return viewFeedback(env, context.ref);
+    auto hasVibrator = env->GetMethodID(static_cast<jclass>(vibratorClass.ref), "hasVibrator", "()Z");
+    if (!jniOK(env) || !hasVibrator) return viewFeedback(env, context.ref);
+    auto available = env->CallBooleanMethod(vibrator.ref, hasVibrator);
+    if (!jniOK(env) || available != JNI_TRUE) return false;
 
     bool ok = false;
-    jclass contextCls = env->GetObjectClass(activity);
-    if (!contextCls || !noException(env)) { if (contextCls) env->DeleteLocalRef(contextCls); env->DeleteLocalRef(activity); return false; }
-    jmethodID getService = env->GetMethodID(contextCls, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
-    if (!getService || !noException(env)) { env->DeleteLocalRef(contextCls); env->DeleteLocalRef(activity); return false; }
-    jstring serviceName = env->NewStringUTF("vibrator");
-    jobject vibrator = serviceName ? env->CallObjectMethod(activity, getService, serviceName) : nullptr;
-    if (!noException(env) || !vibrator) {
-        if (serviceName) env->DeleteLocalRef(serviceName);
-        env->DeleteLocalRef(contextCls);
-        bool feedback = viewFeedback(env, activity);
-        env->DeleteLocalRef(activity);
-        return feedback;
-    }
-    jclass vibratorCls = env->GetObjectClass(vibrator);
-    if (vibratorCls && noException(env)) {
-        jmethodID hasVibrator = env->GetMethodID(vibratorCls, "hasVibrator", "()Z");
-        if (hasVibrator && noException(env) && env->CallBooleanMethod(vibrator, hasVibrator) == JNI_TRUE && noException(env)) {
-            jclass effectCls = env->FindClass("android/os/VibrationEffect");
-            if (effectCls && noException(env)) {
-                jmethodID makeEffect = env->GetStaticMethodID(effectCls, "createOneShot", "(JI)Landroid/os/VibrationEffect;");
-                jobject effect = makeEffect && noException(env) ? env->CallStaticObjectMethod(effectCls, makeEffect, static_cast<jlong>(durationMs), static_cast<jint>(amplitude)) : nullptr;
-                if (effect && noException(env)) {
-                    jmethodID vibrate = env->GetMethodID(vibratorCls, "vibrate", "(Landroid/os/VibrationEffect;)V");
-                    if (vibrate && noException(env)) {
-                        env->CallVoidMethod(vibrator, vibrate, effect);
-                        ok = noException(env);
-                    }
-                } else noException(env);
-                if (effect) env->DeleteLocalRef(effect);
-                env->DeleteLocalRef(effectCls);
-            } else noException(env);
+    LocalRef effectClass(env, env->FindClass("android/os/VibrationEffect"));
+    if (jniOK(env) && effectClass.ref) {
+        auto create = env->GetStaticMethodID(static_cast<jclass>(effectClass.ref),
+            "createOneShot", "(JI)Landroid/os/VibrationEffect;");
+        if (jniOK(env) && create) {
+            LocalRef effect(env, env->CallStaticObjectMethod(static_cast<jclass>(effectClass.ref),
+                create, static_cast<jlong>(durationMs), static_cast<jint>(amplitude)));
+            if (jniOK(env) && effect.ref) {
+                auto vibrate = env->GetMethodID(static_cast<jclass>(vibratorClass.ref),
+                    "vibrate", "(Landroid/os/VibrationEffect;)V");
+                if (jniOK(env) && vibrate) {
+                    env->CallVoidMethod(vibrator.ref, vibrate, effect.ref);
+                    ok = jniOK(env);
+                }
+            }
         }
     }
-    if (vibratorCls) env->DeleteLocalRef(vibratorCls);
-    env->DeleteLocalRef(vibrator);
-    if (serviceName) env->DeleteLocalRef(serviceName);
-    env->DeleteLocalRef(contextCls);
-    // If the host APK lacks VIBRATE permission, request a standard UI haptic.
-    // The OS may suppress it if system-wide haptics are disabled.
-    if (!ok) ok = viewFeedback(env, activity);
-    env->DeleteLocalRef(activity);
+    // If Android disallows direct vibration, use standard view feedback.
+    if (!ok) ok = viewFeedback(env, context.ref);
     return ok;
-}
 }

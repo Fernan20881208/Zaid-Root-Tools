@@ -1,0 +1,36 @@
+{
+  "geode": "5.11.2",
+  "gd": { "android": "2.2081" },
+  "id": "zaid.root-input-mapper",
+  "name": "Zaid Root Tools - Input Mapper",
+  "version": "v0.1.0",
+  "developer": "Zaid",
+  "description": "Map Linux evdev buttons to Geometry Dash player jump via an explicit and restricted su/native evdev session.",
+  "settings": {
+    "mapper-section": {
+      "type": "title", "name": "Root Input Mapper"
+    },
+    "enable-root-mapper": {
+      "type": "bool", "name": "Activar mapper con root", "default": false,
+      "description": "Solicita su y escucha solo el dispositivo seleccionado. Desactivalo antes de cambiar de dispositivo."
+    },
+    "event-device": {
+      "type": "int", "name": "Numero de /dev/input/eventN", "default": -1,
+      "min": -1, "max": 63,
+      "description": "Ejemplo: 4 para /dev/input/event4. El valor -1 deshabilita el acceso al dispositivo.",
+      "control": { "slider": false, "arrows": true, "input": true }
+    },
+    "player-1-key": {
+      "type": "string", "name": "Salto jugador 1", "default": "VOL_UP",
+      "one-of": ["VOL_UP", "VOL_DOWN", "BTN_SOUTH", "BTN_EAST", "BTN_NORTH", "BTN_WEST", "BTN_TL", "BTN_TR", "BTN_SELECT", "BTN_START"]
+    },
+    "player-2-key": {
+      "type": "string", "name": "Salto jugador 2", "default": "VOL_DOWN",
+      "one-of": ["VOL_UP", "VOL_DOWN", "BTN_SOUTH", "BTN_EAST", "BTN_NORTH", "BTN_WEST", "BTN_TL", "BTN_TR", "BTN_SELECT", "BTN_START"]
+    },
+    "show-status": {
+      "type": "bool", "name": "Mostrar estado dentro del nivel", "default": true,
+      "description": "Muestra OFF, SU, ON o ERROR. Se aplica al entrar a un nuevo nivel."
+    }
+  }
+}

@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.21)
+project(zaid_evdev_test LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 23)
+enable_testing()
+add_executable(zaid_evdev_test test_evdev.cpp ../src/RawEvdev.cpp)
+target_include_directories(zaid_evdev_test PRIVATE ../src)
+add_test(NAME raw_evdev COMMAND zaid_evdev_test)

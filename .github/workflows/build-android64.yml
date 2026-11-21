@@ -1,0 +1,27 @@
+name: Build Zaid Root Tools Android64
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build with Geode SDK 5.11.2 (Android64)
+        id: geode-build
+        uses: geode-sdk/build-geode-mod@main
+        with:
+          sdk: given
+          target: Android64
+          build-config: Release
+          use-lto: 'false'
+      - name: Upload .geode
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZaidRootTools-android64
+          path: ${{ steps.geode-build.outputs.build-output }}
+          if-no-files-found: error
